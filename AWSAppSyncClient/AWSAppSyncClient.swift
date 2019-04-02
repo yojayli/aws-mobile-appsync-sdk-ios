@@ -68,7 +68,7 @@ public class AWSAppSyncClient {
     init(appSyncConfig: AWSAppSyncClientConfiguration,
          reachabilityFactory: NetworkReachabilityProvidingFactory.Type? = nil) throws {
 
-        AppSyncLog.info("Initializing AppSyncClient")
+        AppSyncLog.info("Initializing AppSyncClient YJ")
 
         self.autoSubmitOfflineMutations = appSyncConfig.autoSubmitOfflineMutations
         self.store = appSyncConfig.store
