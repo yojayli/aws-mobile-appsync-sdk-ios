@@ -94,6 +94,13 @@ final class AWSPerformOfflineMutationOperation: AsynchronousOperation, Cancellab
         state = .executing
 
         send { result, error in
+            if AWSPerformOfflineMutationOperation.shouldRetry(self.getErrorType(result), error) {
+                // delay 1 second and retry
+                sleep(1)
+                self.start()
+                return
+            }
+            
             if error == nil {
                 self.notifyCompletion(result, error: nil)
                 self.state = .finished
@@ -109,7 +116,16 @@ final class AWSPerformOfflineMutationOperation: AsynchronousOperation, Cancellab
             self.state = .finished
         }
     }
-
+    
+    fileprivate func getErrorType(_ result: JSONObject?) -> String? {
+        if let errors = result?["errors"] as? [Any],
+            let aError = errors.first as? [String:Any],
+            let errorType = aError["errorType"] as? String  {
+            return errorType
+        }
+        return nil
+    }
+    
     // MARK: CustomStringConvertible
 
     override var description: String {
@@ -119,5 +135,49 @@ final class AWSPerformOfflineMutationOperation: AsynchronousOperation, Cancellab
         desc.append(">")
 
         return desc
+    }
+}
+
+extension AWSPerformOfflineMutationOperation{
+    class func shouldRetry(_ errorType: String?, _ error: Error?) -> Bool {
+        if let aError = error as? AWSAppSyncClientError {
+            // debug log
+            // printAWSAppSyncClientError(aError)
+            return true
+        }
+
+        if let errorType = errorType {
+            if errorType == "DynamoDB:ProvisionedThroughputExceededException" {
+                AppSyncLog.debug("Retry MutationOperation: DynamoDB:ProvisionedThroughputExceededException")
+                return true
+            } else {
+                // DynamoDB:ConditionalCheckFailedException
+                // unique ID
+
+                // DynamoDB:AmazonDynamoDBException
+                // item size > 400KB
+                // parameter value > 1KB
+                return false
+            }
+        }
+        return false
+    }
+    
+    class func printAWSAppSyncClientError(_ aAWSAppSyncClientError: AWSAppSyncClientError) {
+        // debug log
+        switch aAWSAppSyncClientError {
+        case .requestFailed(_, let aHTTPURLResponse, let aError):
+            AppSyncLog.debug("Retry MutationOperation: requestFailed HTTPURLResponse \(String(describing: aHTTPURLResponse))")
+            AppSyncLog.debug("Retry MutationOperation: requestFailed Error \(String(describing: aError))")
+            AppSyncLog.debug("Retry MutationOperation: requestFailed Unauthorized \(aHTTPURLResponse?.statusCode == 401)")
+            if let aNSError = aError as NSError? {
+                AppSyncLog.debug("Retry MutationOperation: requestFailed NSError.code \(aNSError.code)")
+                AppSyncLog.debug("Retry MutationOperation: requestFailed NSURLErrorTimedOut \(aNSError.code == NSURLErrorTimedOut)")
+                AppSyncLog.debug("Retry MutationOperation: requestFailed NSURLErrorNotConnectedToInternet \(aNSError.code == NSURLErrorNotConnectedToInternet)")
+            }
+            break
+        default:
+            break
+        }
     }
 }

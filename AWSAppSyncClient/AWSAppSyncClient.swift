@@ -118,6 +118,10 @@ public class AWSAppSyncClient {
         guard let store = store else { return Promise(fulfilled: ()) }
         return store.clearCache()
     }
+    
+    public func cancelAllMutationOperations() {
+        mutationQueue.cancelAllOperations()
+    }
 
     /// Fetches a query from the server or from the local cache, depending on the current contents of the cache and the
     /// specified cache policy.
