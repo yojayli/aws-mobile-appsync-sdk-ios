@@ -81,6 +81,13 @@ final class AWSPerformMutationOperation<Mutation: GraphQLMutation>: Asynchronous
         state = .executing
 
         networkTask = send { (result, error) in
+            if AWSPerformOfflineMutationOperation.shouldRetry(self.getErrorType(result), error) {
+                // delay 1 second and retry
+                sleep(1)
+                self.start()
+                return
+            }
+            
             if error == nil {
                 self.notifyCompletion(result, error: nil)
                 self.state = .finished
@@ -96,6 +103,15 @@ final class AWSPerformMutationOperation<Mutation: GraphQLMutation>: Asynchronous
             self.notifyCompletion(result, error: error)
             self.state = .finished
         }
+    }
+
+    fileprivate func getErrorType(_ result: GraphQLResult<Mutation.Data>?) -> String? {
+        if let aGraphQLErrors = result?.errors,
+            let aGraphQLError = aGraphQLErrors.first,
+            let errorType = aGraphQLError["errorType"] as? String {
+            return errorType
+        }
+        return nil
     }
 
     // MARK: Cancellable

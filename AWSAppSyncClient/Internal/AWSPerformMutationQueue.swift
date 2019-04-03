@@ -61,6 +61,10 @@ final class AWSPerformMutationQueue {
 
     // MARK: - Queue operations
 
+    func cancelAllOperations() {
+        operationQueue.cancelAllOperations()
+    }
+
     func add<Mutation: GraphQLMutation>(
         _ mutation: Mutation,
         mutationConflictHandler: MutationConflictHandler<Mutation>?,
